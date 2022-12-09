@@ -12,6 +12,10 @@ import android.location.Address;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.SystemClock;
+import android.view.animation.BounceInterpolator;
+import android.view.animation.Interpolator;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -23,6 +27,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -31,16 +36,19 @@ import java.util.List;
 
 public class MainActivity extends FragmentActivity implements OnMapReadyCallback,
         LocationListener,GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener{
+        GoogleApiClient.OnConnectionFailedListener {
 
     private GoogleMap mMap;
     Location mLastLocation;
     Marker mCurrLocationMarker;
     SupportMapFragment mapFragment;//this is fragment which is used when map is ready to view
     private String location;
-
     GoogleApiClient mGoogleApiClient;
     LocationRequest mLocationRequest;
+
+    Handler mHandler;
+    private Runnable mAnimation;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,8 +64,10 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void initViews() {
+        mHandler = new Handler();
         mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
     }
+
     @Override
     public void onConnectionSuspended(int i) {
 
@@ -74,8 +84,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 buildGoogleApiClient();
                 mMap.setMyLocationEnabled(true);
             }
-        }
-        else {
+        } else {
             buildGoogleApiClient();
             mMap.setMyLocationEnabled(true);
         }
@@ -109,6 +118,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     public void onPointerCaptureChanged(boolean hasCapture) {
         super.onPointerCaptureChanged(hasCapture);
     }
+
     @Override
     public void onLocationChanged(Location location) {
 
@@ -125,18 +135,89 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         mCurrLocationMarker = mMap.addMarker(markerOptions);
 
         //move map camera
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
-
+        /*mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));*/
+        CameraPosition cameraPosition = new CameraPosition.Builder()
+                .target(latLng)
+                .zoom(17).build();
+        //Zoom in and animate the camera.
+        mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+        setMarkerBounce(mCurrLocationMarker);
         //stop location updates
         if (mGoogleApiClient != null) {
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         }
 
+
     }
+
 
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
 
+    }
+
+    private void setMarkerBounce(final Marker marker) {
+        final Handler handler = new Handler();
+        final long startTime = SystemClock.uptimeMillis();
+        final long duration = 2000;
+        final Interpolator interpolator = new BounceInterpolator();
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                long elapsed = SystemClock.uptimeMillis() - startTime;
+                float t = Math.max(1 - interpolator.getInterpolation((float) elapsed / duration), 0);
+                marker.setAnchor(0.5f, 1.0f + t);
+
+                if (t > 0.0) {
+                    handler.postDelayed(this, 16);
+                } else {
+                    setMarkerBounce(marker);
+                }
+            }
+        });
+    /*@Override
+    public boolean onMarkerClick(@NonNull Marker marker) {
+    *//*    final long start = SystemClock.uptimeMillis();
+        final long duration = 1500L;
+
+        // Cancels the previous animation
+        mHandler.removeCallbacks(mAnimation);
+
+        // Starts the bounce animation
+        mAnimation = new BounceAnimation(start, duration, marker, mHandler);
+        mHandler.post(mAnimation);
+    *//*    // for the default behavior to occur (which is for the camera to move such that the
+        // marker is centered and for the marker's info window to open, if it has one).
+        return false;
+    }
+*/
+    /*private static class BounceAnimation implements Runnable {
+
+        private final long mStart, mDuration;
+        private final Interpolator mInterpolator;
+        private final Marker mMarker;
+        private final Handler mHandler;
+
+        private BounceAnimation(long start, long duration, Marker marker, Handler handler) {
+            mStart = start;
+            mDuration = duration;
+            mMarker = marker;
+            mHandler = handler;
+            mInterpolator = new BounceInterpolator();
+        }
+
+        @Override
+        public void run() {
+            long elapsed = SystemClock.uptimeMillis() - mStart;
+            float t = Math.max(1 - mInterpolator.getInterpolation((float) elapsed / mDuration), 0f);
+            mMarker.setAnchor(0.5f, 1.0f + 1.2f * t);
+
+            if (t > 0.0) {
+                // Post again 16ms later.
+                mHandler.postDelayed(this, 16L);
+            }
+        }
+    }*/
     }
 }
