@@ -22,7 +22,7 @@
             android:layout_width="300dp"
             android:layout_height="300dp"
             android:id="@+id/ivApplogo"
-            android:src="@drawable/ic_cab"
+            android:src="@drawable/cab"
             ></ImageView>
     </LinearLayout>
     <LinearLayout
